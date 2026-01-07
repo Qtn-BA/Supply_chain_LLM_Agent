@@ -5,14 +5,23 @@ import sys
 import warnings
 from pathlib import Path
 
-# Ajouter le dossier parent au path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Ajouter le dossier racine au path
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 warnings.filterwarnings('ignore')
 
 from transformers import pipeline
 from src.agent_tools import DatabaseManager, AnalysisEngine, Visualizer, ReportGenerator
-from scripts.setup_database import setup_database
+
+# Import local du module setup_database
+import importlib.util
+setup_db_path = Path(__file__).parent / "setup_database.py"
+spec = importlib.util.spec_from_file_location("setup_database", setup_db_path)
+setup_db_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(setup_db_module)
+setup_database = setup_db_module.setup_database
 
 
 class SupplyChainAgentHF:
@@ -213,8 +222,20 @@ def main():
             for i, p in enumerate(products[:10], 1):
                 print(f"{i}. {p}")
             
-            idx = input("\nNuméro du produit (ou Entrée pour le premier): ").strip()
-            product = products[int(idx)-1] if idx.isdigit() and int(idx) <= len(products) else products[0]
+            choice_input = input("\nNuméro du produit (ou Entrée pour le premier): ").strip()
+            
+            # Gérer la sélection
+            if choice_input.isdigit():
+                idx = int(choice_input)
+                if 1 <= idx <= len(products):
+                    product = products[idx - 1]
+                else:
+                    product = products[0]
+            elif choice_input in products:
+                # Si l'utilisateur tape le nom du produit
+                product = choice_input
+            else:
+                product = products[0]
             
             agent.run_complete_analysis(product)
         
