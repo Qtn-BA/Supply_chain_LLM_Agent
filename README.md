@@ -1,4 +1,4 @@
-# Production & Inventory Optimization Agent
+# Production & Inventory Optimization Agent aaa
 
 ## Project Overview
 This project implements an AI-assisted agent for monitoring and optimizing production and inventory in a supply chain context.  
@@ -47,3 +47,4 @@ The database can be initialized using:
 ```bash
 python scripts/setup_database.py
 ```
+
