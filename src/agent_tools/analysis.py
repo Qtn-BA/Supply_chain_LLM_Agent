@@ -3,7 +3,7 @@ Outils d'analyse et de prévision avec Hugging Face
 """
 import pandas as pd
 import numpy as np
-from datetime import timedelta
+from datetime import timedelta, datetime
 from statsmodels.tsa.arima.model import ARIMA
 from prophet import Prophet
 import warnings
@@ -287,7 +287,13 @@ class AnalysisEngine:
             avg_daily_sales = df['daily_sold_units'].mean()
             current_stock = df['current_stock_level'].iloc[-1]
             
-            avg_lead_time = df['Lead time'].mean() if 'Lead time' in df.columns else 7
+            # Gérer différents noms de colonnes pour le lead time
+            if 'Lead time' in df.columns:
+                avg_lead_time = df['Lead time'].mean()
+            elif 'Lead times' in df.columns:
+                avg_lead_time = df['Lead times'].mean()
+            else:
+                avg_lead_time = 7  # Valeur par défaut
             
             safety_stock = avg_daily_sales * 7
             reorder_point = (avg_daily_sales * avg_lead_time) + safety_stock

@@ -3,7 +3,7 @@ Outils de visualisation des données
 """
 import matplotlib.pyplot as plt
 import seaborn as sns
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 class Visualizer:
     """Gestionnaire de visualisations pour la supply chain."""
