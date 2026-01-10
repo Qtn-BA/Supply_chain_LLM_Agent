@@ -148,9 +148,33 @@ class SupplyChainAgentHF:
         # 3. Prévisions
         print("\n3️⃣ PRÉVISIONS DE DEMANDE")
         try:
-            self.viz.plot_demand_forecast(product, horizon=14, method='prophet')
+            # Proposer le choix
+            print("\nChoisissez le type de graphique:")
+            print("  1. Quotidien (très détaillé, peut être surchargé)")
+            print("  2. Hebdomadaire (plus clair, recommandé) ⭐")
+            
+            graph_choice = input("Votre choix (1 ou 2, Entrée = 2): ").strip()
+            
+            # Choisir la méthode de prévision
+            print("\nMéthode de prévision:")
+            print("  1. Simple (rapide, fiable) ⭐ RECOMMANDÉ")
+            print("  2. ARIMA (statistique, peut être instable)")
+            print("  3. Prophet (avancé, peut échouer)")
+            
+            method_choice = input("Votre choix (1-3, Entrée = 1): ").strip()
+            method_map = {'1': 'simple', '2': 'arima', '3': 'prophet'}
+            method = method_map.get(method_choice, 'simple')
+            
+            if graph_choice == '1':
+                print("\n⚠️ Graphique quotidien - Peut être difficile à lire avec beaucoup de données")
+                self.viz.plot_demand_forecast(product, horizon=14, method=method)
+            else:
+                print("\n📊 Génération du graphique hebdomadaire (plus lisible)...")
+                self.viz.plot_weekly_demand_forecast(product, horizon=14, method=method)
         except Exception as e:
             print(f"❌ Erreur prévisions: {e}")
+            import traceback
+            traceback.print_exc()
         
         # 4. Anomalies
         print("\n4️⃣ DÉTECTION DES ANOMALIES")
@@ -179,34 +203,104 @@ class SupplyChainAgentHF:
     
     def quick_status(self):
         """Affiche un résumé rapide du statut."""
-        print("\n" + "="*60)
+        print("\n" + "="*70)
         print("📊 STATUT RAPIDE DE LA SUPPLY CHAIN")
-        print("="*60)
+        print("="*70)
         
         try:
             summary = self.reports.generate_summary_stats()
+            date_range = summary.get('date_range', {})
             
-            print(f"\n📦 Produits: {summary['total_products']}")
-            print(f"📈 Ventes totales: {summary['total_sales']:.0f} unités")
-            print(f"📊 Ventes moy/jour: {summary['avg_daily_sales']:.2f} unités")
-            print(f"🏪 Stock total: {summary['total_stock']:.0f} unités")
-            print(f"⚠️ Ruptures de stock: {summary['stockout_incidents']}")
+            print(f"\n📦 Vue d'ensemble:")
+            print(f"   • Produits: {summary['total_products']}")
             
-            # Plan de réappro urgent
-            restock = self.analysis.suggest_restock_plan()
-            urgent = restock[restock['urgency'] == 'urgent']
-            
-            if len(urgent) > 0:
-                print(f"\n🚨 {len(urgent)} produits en urgence:")
-                for _, item in urgent.head(3).iterrows():
-                    print(f"  • {item['product']}: {item['days_of_stock']:.1f} jours de stock")
+            # Gérer date_range qui peut être un dict ou None
+            if isinstance(date_range, dict):
+                days = date_range.get('days', 0)
+                print(f"   • Période analysée: {days} jours")
             else:
-                print("\n✅ Aucun produit en situation urgente")
+                print(f"   • Période analysée: {summary['total_records']} enregistrements")
+            
+            print(f"   • Enregistrements: {summary['total_records']:,}")
+            
+            print(f"\n📈 Ventes:")
+            print(f"   • Total: {summary['total_sales']:,.0f} unités")
+            print(f"   • Moyenne/jour (tous produits): {summary['avg_daily_sales']:.2f} unités/jour")
+            print(f"   • Moyenne/jour/produit: {summary.get('avg_daily_sales_per_product', 0):.2f} unités/jour")
+            
+            print(f"\n🏪 Stocks:")
+            print(f"   • Stock total actuel: {summary['total_stock']:,.0f} unités")
+            
+            days_remaining = summary.get('days_of_stock_remaining', 0)
+            if days_remaining < 999:
+                print(f"   • Jours de stock restants: {days_remaining:.1f} jours")
+            
+            print(f"\n⚠️ Alertes:")
+            print(f"   • Ruptures historiques: {summary['stockout_incidents']} occurrences")
+            
+            # Analyser chaque produit individuellement
+            print(f"\n📦 Détail par produit:")
+            print("-" * 70)
+            
+            products = self.db.get_all_products()
+            urgent_products = []
+            
+            for product in products:
+                stats = self.db.get_product_stats(product, period_days=30)
+                if stats:
+                    days_stock = (stats['current_stock'] / stats['avg_daily_sales']) if stats['avg_daily_sales'] > 0 else 999
+                    
+                    # Déterminer le statut
+                    if stats['current_stock'] == 0:
+                        status = "🔴 RUPTURE"
+                        urgent_products.append((product, days_stock, 'critical'))
+                    elif days_stock < 7:
+                        status = "🟠 URGENT"
+                        urgent_products.append((product, days_stock, 'urgent'))
+                    elif days_stock < 14:
+                        status = "🟡 ATTENTION"
+                        urgent_products.append((product, days_stock, 'warning'))
+                    else:
+                        status = "🟢 OK"
+                    
+                    print(f"\n{product}:")
+                    print(f"   • Stock actuel: {stats['current_stock']:.0f} unités")
+                    print(f"   • Ventes moy/jour: {stats['avg_daily_sales']:.2f} unités")
+                    print(f"   • Jours restants: {days_stock:.1f} jours")
+                    print(f"   • Statut: {status}")
+            
+            # Plan de réappro avec détails
+            print(f"\n📋 Analyse du réapprovisionnement:")
+            print("-" * 70)
+            
+            if len(urgent_products) > 0:
+                critical = [p for p in urgent_products if p[2] == 'critical']
+                urgent = [p for p in urgent_products if p[2] == 'urgent']
+                warning = [p for p in urgent_products if p[2] == 'warning']
+                
+                if critical:
+                    print(f"\n🔴 {len(critical)} produit(s) EN RUPTURE:")
+                    for prod, days, _ in critical:
+                        print(f"   • {prod}: STOCK ÉPUISÉ - Commander IMMÉDIATEMENT")
+                
+                if urgent:
+                    print(f"\n🟠 {len(urgent)} produit(s) en URGENCE CRITIQUE (< 7 jours):")
+                    for prod, days, _ in urgent:
+                        print(f"   • {prod}: {days:.1f} jours restants - Action urgente requise")
+                
+                if warning:
+                    print(f"\n🟡 {len(warning)} produit(s) nécessitent ATTENTION (< 14 jours):")
+                    for prod, days, _ in warning:
+                        print(f"   • {prod}: {days:.1f} jours restants - Planifier commande")
+            else:
+                print("\n✅ Aucun produit en situation urgente - Tous les stocks sont sains")
             
         except Exception as e:
             print(f"❌ Erreur: {e}")
+            import traceback
+            traceback.print_exc()
         
-        print("="*60)
+        print("\n" + "="*70)
     
     def analyze_product(self, product):
         """
