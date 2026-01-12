@@ -161,3 +161,10 @@ python scripts/LLM.py
 - "Give me a summary"
 - "Overall supply chain report"
 
+---
+
+## Authors:
+- PIERRON, Marie
+- BACHER, Quentin
+- SKOVGAARD, Anémone
+
