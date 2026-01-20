@@ -1,10 +1,9 @@
 # Production & Inventory Optimization Agent 
 
 ## Project Overview
-This project implements an AI-assisted agent for monitoring and optimizing production and inventory in a supply chain context.  
-The agent analyzes inventory data, detects anomalies, forecasts demand, and supports decision-making for restocking and production planning.
+This project implements an LLM agent for monitoring and optimizing production and inventory in a supply chain context.  
+The agent is able to analyzes inventory data, detects anomalies, forecasts demand, and supports decision-making for restocking and production planning.
 
-This project is developed as part of the course **Advanced Programming and Data Visualization**.
 
 ---
 
@@ -167,4 +166,5 @@ python scripts/LLM.py
 - PIERRON, Marie
 - BACHER, Quentin
 - SKOVGAARD, Anémone
+
 
